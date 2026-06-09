@@ -1,13 +1,8 @@
 import express from "express";
+import router from "./routes/index.routes.js";
 
 const app = express();
 
-app.get("/",(req,res)=>{
-    res.send("Career OS API");
-});
-
-app.get("/health",(req,res)=>{
-    res.send("OK");
-});
+app.use("/",router);
 
 export default app;

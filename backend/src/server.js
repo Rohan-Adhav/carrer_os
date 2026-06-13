@@ -1,5 +1,6 @@
 import app from "./app.js";
+import env from "./config/env.js";
 
-const PORT = 5000;
+const PORT = env.PORT;
 
 app.listen(PORT);

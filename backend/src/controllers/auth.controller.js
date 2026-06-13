@@ -2,7 +2,9 @@ import User from "../models/user.model.js";
 import AppError from "../utils/AppError.js";
 import asyncHandler from "../utils/asyncHandler.js"
 import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken"
 import { generateAccessToken, generateRefreshToken } from "../utils/token.js";
+import env from "../config/env.js"
 
 const registerUser = asyncHandler(async (req, res, next) => {
     let { name, email, password } = req.body
@@ -59,6 +61,14 @@ const loginUser = asyncHandler(async (req, res, next) => {
     let accessToken = generateAccessToken(user._id, user.role)
     let refreshToken = generateRefreshToken(user._id)
 
+    const options = {
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    }
+
+    res.cookie("refreshToken", refreshToken, options)
     user.refreshToken = refreshToken
     await user.save()
 
@@ -66,7 +76,6 @@ const loginUser = asyncHandler(async (req, res, next) => {
         success: true,
         message: "Login successful",
         accessToken,
-        refreshToken, // later we will move this to HTTP-only cookie
         user: {
             id: user._id,
             name: user.name,
@@ -76,4 +85,80 @@ const loginUser = asyncHandler(async (req, res, next) => {
     });
 
 })
-export { registerUser, loginUser }
+
+
+const refreshAccessToken = asyncHandler(async (req, res, next) => {
+    let { refreshToken } = req.cookies
+
+    if (!refreshToken) {
+        return next(new AppError("Unauthorised", 401))
+    }
+
+    let decoded;
+
+    try {
+
+        decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET)
+
+    } catch (error) {
+
+        return next(new AppError("Unauthorised", 401))
+
+    }
+
+
+    let userId = decoded.userId
+
+    let user = await User.findOne({ _id: userId })
+
+    if (!user) {
+        return next(new AppError("User Not Found", 409))
+    }
+
+    if (refreshToken !== user.refreshToken) {
+        return next(new AppError("Unauthorised", 401))
+    }
+
+    let accessToken = generateAccessToken(user._id, user.role)
+
+    res.status(200).json({
+        success: true,
+        message: "Access Token generated succssfully",
+        accessToken: accessToken,
+        user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            createdAt: user.createdAt
+        }
+
+    });
+})
+
+const logout = asyncHandler(async (req, res, next) => {
+    let userId = req.user.id
+
+    const user = await User.findByIdAndUpdate(
+        userId,
+        { refreshToken: null },
+        { new: true }
+    );
+
+    if (!user) {
+        return next(new AppError("User Not Found", 404))
+    }
+
+    res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax"
+    })
+
+    res.status(200).json({
+        success: true,
+        message: "Logged Out Successfully"
+    })
+
+})
+
+export { registerUser, loginUser, refreshAccessToken, logout }

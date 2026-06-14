@@ -136,7 +136,7 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
 })
 
 const logout = asyncHandler(async (req, res, next) => {
-    let userId = req.user.id
+    let userId = req.user._id
 
     const user = await User.findByIdAndUpdate(
         userId,

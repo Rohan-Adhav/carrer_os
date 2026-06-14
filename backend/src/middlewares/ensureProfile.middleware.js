@@ -1,21 +1,30 @@
 import Profile from "../models/profile.model.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
-const ensureProfile = asyncHandler(async(req,res,next)=>{
-    let userId  = req.user._id
+const ensureProfile = asyncHandler(async (req, res, next) => {
+    const userId = req.user._id;
 
-    let profile = await Profile.findOne({userId:userId})
+    const profile = await Profile.findOneAndUpdate(
+        { userId },
+        {
+            $setOnInsert: {
+                userId,
+                bio: "",
+                skills: [],
+                experience: [],
+                interests: [],
+                targetRole: ""
+            }
+        },
+        {
+            new: true,
+            upsert: true
+        }
+    );
 
-    if(!profile){
-        profile = await Profile.create({
-            userId:userId
-        })
-    }
+    req.profile = profile;
 
-    req.profile = profile
+    next();
+});
 
-    next()
-
-})
-
-export default ensureProfile
+export default ensureProfile;

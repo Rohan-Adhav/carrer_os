@@ -1,9 +1,22 @@
 import { NavLink, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+
 
 export default function Navbar() {
 
     const baseLink =
         "relative text-sm font-medium transition-colors duration-200";
+    
+    const navigate = useNavigate()
+
+    const {logout} = useAuth()
+
+    const handleLogout =async()=>{
+        await logout()
+        navigate("/login")
+
+    }
 
     const underlineBase =
         "absolute left-0 -bottom-1 h-[2px] w-full origin-left transition-transform duration-300 bg-gradient-to-r from-purple-500 to-blue-500";
@@ -73,6 +86,7 @@ export default function Navbar() {
                         active:scale-95
                         backdrop-blur-md
                     "
+                    onClick={handleLogout}
                 >
                     Logout
                 </button>

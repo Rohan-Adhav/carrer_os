@@ -1,34 +1,58 @@
 import { useState } from "react";
 import Input from "../components/Input.jsx";
 import Button from "../components/Button.jsx";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Login() {
-    const [form, setForm] = useState({ email: "", password: "" });
+    const [form, setForm] = useState({
+        email: "",
+        password: ""
+    });
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState({});
+
+    const navigate = useNavigate();
+
+    const {login} = useAuth()
 
     const handleChange = (e) => {
         const { name, value } = e.target;
 
-        setForm({ ...form, [name]: value });
+        setForm((prev) => ({
+            ...prev,
+            [name]: value
+        }));
 
-        // clear field error while typing
+        // clear only field error
         setError((prev) => ({
             ...prev,
             [name]: ""
         }));
     };
 
+    
     const validate = () => {
         const newErrors = {};
 
-        if (!form.email) {
+        const email = form.email.trim();
+        const password = form.password;
+
+        // EMAIL
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!email) {
             newErrors.email = "Email is required";
+        } else if (!emailRegex.test(email)) {
+            newErrors.email = "Enter a valid email";
         }
 
-        if (!form.password) {
+        // PASSWORD
+        if (!password) {
             newErrors.password = "Password is required";
+        } else if (password.length < 6) {
+            newErrors.password = "Password must be at least 6 characters";
         }
 
         return newErrors;
@@ -37,29 +61,36 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // reset errors before validation
         setError({});
 
-        const newErrors = validate();
+        const validationErrors = validate();
 
-        if (Object.keys(newErrors).length > 0) {
-            setError(newErrors);
+        if (Object.keys(validationErrors).length > 0) {
+            setError(validationErrors);
             return;
         }
 
         try {
             setLoading(true);
 
-            console.log("login Data : ", form);
+            const payload = {
+                email: form.email.trim(),
+                password: form.password
+            };
+
+            await login(payload);
 
             setForm({
                 email: "",
                 password: ""
             });
 
+            navigate("/dashboard");
         } catch (err) {
             setError({
-                general: err?.response?.data?.message || "Login failed"
+                general:
+                    err?.response?.data?.message ||
+                    "Invalid credentials"
             });
         } finally {
             setLoading(false);
@@ -82,7 +113,6 @@ export default function Login() {
                     Login to continue
                 </p>
 
-                {/* GLOBAL ERROR */}
                 {error.general && (
                     <div className="mt-4 bg-red-500/20 border border-red-400 text-red-200 text-sm px-3 py-2 rounded-lg">
                         {error.general}
@@ -98,7 +128,6 @@ export default function Login() {
                         value={form.email}
                         onChange={handleChange}
                         placeholder="johndoe@gmail.com"
-                        required
                         autoComplete="email"
                         error={error.email}
                     />
@@ -110,7 +139,6 @@ export default function Login() {
                         value={form.password}
                         onChange={handleChange}
                         placeholder="******"
-                        required
                         autoComplete="current-password"
                         error={error.password}
                     />
@@ -123,12 +151,14 @@ export default function Login() {
                         Login
                     </Button>
 
-
                 </form>
 
                 <p className="text-center text-gray-400 text-sm mt-6">
                     Don’t have an account?{" "}
-                    <Link to="/register" className="text-purple-400 hover:underline">
+                    <Link
+                        to="/register"
+                        className="text-purple-400 hover:underline"
+                    >
                         Register
                     </Link>
                 </p>

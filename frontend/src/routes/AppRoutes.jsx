@@ -5,23 +5,25 @@ import Dashboard from "../pages/Dashboard.jsx";
 import Jobs from "../pages/Jobs.jsx";
 import AuthLayout from "../layouts/AuthLayout.jsx";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
+import ProtectedRoutes from "./ProtectedRoutes.jsx";
 
 export default function AppRoutes() {
     return (
-        
-            <Routes>
 
-                <Route element={<AuthLayout />}>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                </Route>
+        <Routes>
 
+            <Route element={<AuthLayout />}>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+            </Route>
+
+            <Route element={<ProtectedRoutes />}>
                 <Route element={<DashboardLayout />}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/jobs" element={<Jobs />} />
                 </Route>
-
-            </Routes>
+            </Route>
+        </Routes>
 
     )
 }

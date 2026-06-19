@@ -1,41 +1,80 @@
 import Input from "../components/Input.jsx";
 import Button from "../components/Button.jsx";
 import { useState } from "react";
-import { Link } from "react-router-dom";
-
+import { Link, useNavigate } from "react-router-dom";
+import { register } from "../services/api/auth.api.js";
 
 export default function Register() {
-
     const [form, setForm] = useState({
-        name: "", email: "", password: "", confirmPassword: ""
-    })
+        name: "",
+        email: "",
+        password: "",
+        confirmPassword: ""
+    });
 
-    const [loading, setLoading] = useState(false)
+    const navigate = useNavigate();
 
-    const [error, setError] = useState({})
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState({});
 
     const handleChange = (e) => {
-        const { name, value } = e.target
+        const { name, value } = e.target;
 
-        setForm({
-            ...form, [name]: value
-        })
+        setForm((prev) => ({
+            ...prev,
+            [name]: value
+        }));
 
+        // clear only field error
         setError((prev) => ({
             ...prev,
             [name]: ""
-        }))
-    }
+        }));
+    };
 
+    
     const validate = () => {
         const newErrors = {};
 
-        if (!form.name.trim()) newErrors.name = "Name is required";
-        if (!form.email.trim()) newErrors.email = "Email is required";
-        if (!form.password) newErrors.password = "Password is required";
-        if (!form.confirmPassword) newErrors.confirmPassword = "Confirm password is required";
+        const name = form.name.trim();
+        const email = form.email.trim();
+        const password = form.password;
+        const confirmPassword = form.confirmPassword;
 
-        if (form.password && form.confirmPassword && form.password !== form.confirmPassword) {
+        // NAME
+        if (!name) {
+            newErrors.name = "Name is required";
+        } else if (name.length < 3) {
+            newErrors.name = "Name must be at least 3 characters";
+        } else if (name.length > 30) {
+            newErrors.name = "Name must be under 30 characters";
+        }
+
+        // EMAIL
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) {
+            newErrors.email = "Email is required";
+        } else if (!emailRegex.test(email)) {
+            newErrors.email = "Enter a valid email";
+        }
+
+        // PASSWORD
+        const hasNumber = /\d/;
+        const hasLetter = /[a-zA-Z]/;
+
+        if (!password) {
+            newErrors.password = "Password is required";
+        } else if (password.length < 8) {
+            newErrors.password = "Password must be at least 8 characters";
+        } else if (!hasLetter.test(password) || !hasNumber.test(password)) {
+            newErrors.password =
+                "Password must contain letters and numbers";
+        }
+
+        // CONFIRM PASSWORD
+        if (!confirmPassword) {
+            newErrors.confirmPassword = "Confirm your password";
+        } else if (password !== confirmPassword) {
             newErrors.confirmPassword = "Passwords do not match";
         }
 
@@ -44,35 +83,46 @@ export default function Register() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError({})
 
-        const newErrors = validate()
+        setError({});
 
-        if (Object.keys(newErrors).length > 0) {
-            setError(newErrors)
-            return
+        const validationErrors = validate();
+
+        if (Object.keys(validationErrors).length > 0) {
+            setError(validationErrors);
+            return;
         }
 
         try {
-            setLoading(true)
+            setLoading(true);
 
-            console.log("Register Data: ", form)
+            const payload = {
+                name: form.name.trim(),
+                email: form.email.trim(),
+                password: form.password
+            };
+
+            await register(payload);
 
             setForm({
                 name: "",
                 email: "",
                 password: "",
                 confirmPassword: ""
-            })
+            });
 
+            navigate("/login");
         } catch (err) {
             setError({
-                general: err?.response?.data?.message || "Registration Failed"
-            })
+                general:
+                    err?.response?.data?.message ||
+                    "Registration failed"
+            });
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#0b0f1a] px-4 sm:px-6 lg:px-8 relative overflow-hidden">
 
@@ -86,7 +136,7 @@ export default function Register() {
                 </h2>
 
                 <p className="text-center text-gray-300 text-sm sm:text-base mt-2">
-                    Join Carrer Os
+                    Join Career OS
                 </p>
 
                 {error.general && (
@@ -94,10 +144,11 @@ export default function Register() {
                         {error.general}
                     </div>
                 )}
+
                 <form
                     onSubmit={handleSubmit}
-                    className="flex flex-col gap-4">
-
+                    className="flex flex-col gap-4 mt-6"
+                >
                     <Input
                         label="Name"
                         name="name"
@@ -105,7 +156,6 @@ export default function Register() {
                         value={form.name}
                         onChange={handleChange}
                         placeholder="John Doe"
-                        required
                         autoComplete="name"
                         error={error.name}
                     />
@@ -117,7 +167,6 @@ export default function Register() {
                         value={form.email}
                         onChange={handleChange}
                         placeholder="johndoe@gmail.com"
-                        required
                         autoComplete="email"
                         error={error.email}
                     />
@@ -128,8 +177,7 @@ export default function Register() {
                         type="password"
                         value={form.password}
                         onChange={handleChange}
-                        placeholder="******"
-                        required
+                        placeholder="********"
                         error={error.password}
                     />
 
@@ -139,8 +187,7 @@ export default function Register() {
                         type="password"
                         value={form.confirmPassword}
                         onChange={handleChange}
-                        placeholder="******"
-                        required
+                        placeholder="********"
                         error={error.confirmPassword}
                     />
 
@@ -151,11 +198,14 @@ export default function Register() {
                     >
                         Register
                     </Button>
-
                 </form>
+
                 <p className="text-center text-gray-400 text-sm mt-6">
                     Already have an account?{" "}
-                    <Link to="/login" className="text-purple-400 hover:underline">
+                    <Link
+                        to="/login"
+                        className="text-purple-400 hover:underline"
+                    >
                         Login
                     </Link>
                 </p>

@@ -1,15 +1,23 @@
 import axios from "axios";
-import { refreshAccessToken } from "./auth.api.js";
 
 const baseUrl =
     import.meta.env.VITE_BASE_URL || "http://localhost:5000/api";
 
-const publicRoutes = ["/auth/login", "/auth/register", "/auth/refreshAccessToken"];
+export const axiosPublic = axios.create({
+    baseURL: baseUrl,
+    withCredentials: true,
+});
 
 const axiosInstance = axios.create({
     baseURL: baseUrl,
     withCredentials: true,
 });
+
+// ---------------- REFRESH (local, no imports = no circular dependency) ----------------
+const refreshAccessToken = async () => {
+    const response = await axiosPublic.post("/auth/refreshAccessToken");
+    return response.data;
+};
 
 // ---------------- REQUEST INTERCEPTOR ----------------
 axiosInstance.interceptors.request.use((config) => {
@@ -17,13 +25,7 @@ axiosInstance.interceptors.request.use((config) => {
 
     config.headers = config.headers || {};
 
-    const requestPath = config.url?.split("?")[0];
-
-    const isPublicRoute = publicRoutes.some((route) =>
-        requestPath?.startsWith(route)
-    );
-
-    if (token && !isPublicRoute) {
+    if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -31,43 +33,30 @@ axiosInstance.interceptors.request.use((config) => {
 });
 
 // ---------------- RESPONSE INTERCEPTOR ----------------
+// ---------------- RESPONSE INTERCEPTOR ----------------
 axiosInstance.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
 
-        // If no response or not 401 → just reject
         if (!error.response) {
             return Promise.reject(error);
         }
 
-        // Handle 401 only
-        if (
-            error.response.status === 401 &&
-            !originalRequest._retry
-        ) {
-            originalRequest._retry = true;
+        // Prevent retry loops on the refresh endpoint itself
+        if (originalRequest?.url?.includes("/auth/refreshAccessToken")) {
+            return Promise.reject(error);
+        }
 
-            try {
-                const data = await refreshAccessToken();
+        if (error.response.status === 401 && !originalRequest._retry) {
+            const token = localStorage.getItem("token");
 
-                const newAccessToken = data.accessToken;
-
-                // store new token
-                localStorage.setItem("token", newAccessToken);
-
-                // update header for future requests
-                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-                // retry original request
-                return axiosInstance(originalRequest);
-            } catch (refreshError) {
-                // refresh failed → force logout
-                localStorage.removeItem("token");
-                window.location.href = "/login";
-
-                return Promise.reject(refreshError);
+            // ✅ No token = user is logged out, don't attempt refresh
+            if (!token) {
+                return Promise.reject(error);
             }
+
+            // ... rest of your refresh queue logic
         }
 
         return Promise.reject(error);

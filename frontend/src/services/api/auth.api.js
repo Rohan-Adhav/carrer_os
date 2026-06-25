@@ -1,33 +1,60 @@
-import axiosInstance from "./axiosInstance.js";
+import axiosInstance, { axiosPublic } from "./axiosInstance.js";
 
-const login = async (credentials) => {
-    const response = await axiosInstance.post(
-        "/auth/login", credentials
-    )
-    return response.data.data
-}
+// ---------------- LOGIN ----------------
+export const login = async (credentials) => {
+    const response = await axiosPublic.post(
+        "/auth/login",
+        credentials
+    );
 
+    const data = response.data.data;
 
-const register = async (credentials) => {
-    const response = await axiosInstance.post(
-        "/auth/register", credentials
-    )
-    return response.data.data
-}
+    if (data?.accessToken) {
+        localStorage.setItem("token", data.accessToken);
+    }
 
-const logout = async () => {
+    return data;
+};
 
-    const response = await axiosInstance.post("/auth/logout")
-    localStorage.removeItem("token")
-    return response.data.data
+// ---------------- REGISTER ----------------
+export const register = async (credentials) => {
+    const response = await axiosPublic.post(
+        "/auth/register",
+        credentials
+    );
 
-}
+    return response.data.data;
+};
 
-const refreshAccessToken = async()=>{
-    const response = await axiosInstance.post(
+// ---------------- LOGOUT ----------------
+export const logout = async () => {
+    try {
+        await axiosInstance.post("/auth/logout");
+    } catch (err) {
+        // ignore backend failure
+    } finally {
+        localStorage.removeItem("token");
+    }
+};
+
+// (optional helper if you want manual refresh calls anywhere)
+export const refreshAccessTokenAPI = async () => {
+    const response = await axiosPublic.post(
         "/auth/refreshAccessToken"
+    );
+
+    const data = response.data.data;
+
+    if (data?.accessToken) {
+        localStorage.setItem("token", data.accessToken);
+    }
+
+    return data;
+};
+
+export const getCurrentUser =  async()=>{
+    const response = await axiosInstance.get(
+        "/auth/me"
     )
-    localStorage.setItem("token",response.data.accessToken)
     return response.data.data
 }
-export { login, register, logout,refreshAccessToken }
